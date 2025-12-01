@@ -28,7 +28,9 @@ binarysem sem_escape;
 semaphore sem_find;     // released 3 times
 binarysem sem_heart;
 binarysem sem_explain;
-semaphore sem_stay;     // released 3 times
+binarysem sem_stay1;    // dwarf 1 can say lets her stay
+binarysem sem_stay2;    // dwarf 2 can say lets her stay
+binarysem sem_stay3;    // dwarf 3 can say lets her stay
 binarysem sem_realize;
 semaphore sem_wash;     // counting (starts at 3)
 binarysem sem_disguise;
@@ -168,9 +170,7 @@ void snow_white() {
   wait(sem_explain);
   Delay();
   msg(17, 0);
-  signal(sem_stay);
-  signal(sem_stay);
-  signal(sem_stay);
+  signal(sem_stay1);  // trigger dwarf 1 first
 
   // serve lunch in order they washed (fifo)
   // poll the queue until all 3 are served
@@ -236,13 +236,13 @@ void dwarf1() {
     msg(2, 1);
   }
 
-  wait(sem_stay);
+  wait(sem_stay1);
   Delay();
   msg(3, 1);
   wait(cnt_mutex);
   dwarfs_stay = dwarfs_stay + 1;
-  if (dwarfs_stay == 3) signal(sem_realize);
   signal(cnt_mutex);
+  signal(sem_stay2);  // trigger dwarf 2 next
 
   // wash for lunch - add self to queue, SW serves in this order
   wait(sem_wash);
@@ -321,13 +321,13 @@ void dwarf2() {
     msg(2, 2);
   }
 
-  wait(sem_stay);
+  wait(sem_stay2);
   Delay();
   msg(3, 2);
   wait(cnt_mutex);
   dwarfs_stay = dwarfs_stay + 1;
-  if (dwarfs_stay == 3) signal(sem_realize);
   signal(cnt_mutex);
+  signal(sem_stay3);  // trigger dwarf 3 last
 
   wait(sem_wash);
   Delay();
@@ -401,7 +401,7 @@ void dwarf3() {
     msg(2, 3);
   }
 
-  wait(sem_stay);
+  wait(sem_stay3);
   Delay();
   msg(3, 3);
   wait(cnt_mutex);
@@ -497,7 +497,9 @@ main() {
   initialsem(sem_find, 0);
   initialsem(sem_heart, 0);
   initialsem(sem_explain, 0);
-  initialsem(sem_stay, 0);
+  initialsem(sem_stay1, 0);
+  initialsem(sem_stay2, 0);
+  initialsem(sem_stay3, 0);
   initialsem(sem_realize, 0);
   initialsem(sem_wash, 3);  // dwarfs race
   initialsem(sem_disguise, 0);
