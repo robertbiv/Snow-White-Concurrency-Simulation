@@ -51,11 +51,10 @@ binarysem lunch2;  // signals dwarf 2
 binarysem lunch3;  // signals dwarf 3
 
 void Delay() {
-  int x;
-  x = random(100);
-  while(x > 0) {
-    x = x - 1;
-  }
+  int i;
+  int DelayTime;
+  DelayTime = random(100);
+  for (i = 0; i < DelayTime; i++);
 }
 
 // print function
@@ -200,9 +199,12 @@ void snow_white() {
 
   wait(sem_apple);
   Delay();
-  msg(23, 0);
+  // hold print mutex to prevent interruption between eating and coma
+  wait(print_mutex);
+  cout << "    SW eats apple." << endl;
   Delay();
-  msg(24, 0);
+  cout << "    SW falls in coma." << endl;
+  signal(print_mutex);
   signal(sem_home2);
   signal(sem_home2);
   signal(sem_home2);
