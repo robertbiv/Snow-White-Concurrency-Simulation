@@ -1,0 +1,275 @@
+// Constants
+const int MAX_DELAY = 20;
+
+// print semaphore
+binarysem print_mutex = 1;
+
+// story semaphores in order
+// dwarves go to work
+binarysem sem_d2_go = 0;
+binarysem sem_q_order = 0;
+binarysem sem_h_take = 0;
+binarysem sem_d1_go = 0;
+binarysem sem_sw_follow = 0;
+binarysem sem_h_spare = 0;
+binarysem sem_d3_go = 0;
+
+// SW escapes to cottage
+binarysem sem_sw_escape = 0;
+binarysem sem_d2_find = 0;
+binarysem sem_h_heart = 0;
+binarysem sem_d1_find = 0;
+binarysem sem_d3_find = 0;
+
+// dwarves let SW stay
+binarysem sem_d1_stay = 0;
+binarysem sem_d2_stay = 0;
+binarysem sem_d3_stay = 0;
+binarysem sem_q_realize = 0;
+
+// lunch
+binarysem sem_d3_wash = 0;
+binarysem sem_sw_lunch2 = 0;
+binarysem sem_d2_eat = 0;
+binarysem sem_sw_lunch3 = 0;
+binarysem sem_d3_eat = 0;
+binarysem sem_sw_lunch1 = 0;
+binarysem sem_d1_eat = 0;
+
+// peddler visits
+binarysem sem_p_knock = 0;
+binarysem sem_sw_open = 0;
+binarysem sem_p_offer = 0;
+binarysem sem_sw_eat = 0;
+binarysem sem_sw_coma = 0;
+
+// dwarves come home
+binarysem sem_d2_dead = 0;
+binarysem sem_d3_home = 0;
+binarysem sem_d1_home = 0;
+
+// funeral
+binarysem sem_d2_casket = 0;
+binarysem sem_d3_casket = 0;
+binarysem sem_d1_casket = 0;
+
+// the end
+binarysem sem_end = 0;
+
+
+// Helper Functions
+// random delay
+void do_delay(int m) {
+  delay(random(m));
+}
+
+// atomic print
+void print_line(char *s) {
+  wait(print_mutex);
+  cout << s << endl;
+  signal(print_mutex);
+}
+
+
+// Actors
+void queen() {
+  wait(sem_q_order);
+  do_delay(MAX_DELAY);
+  print_line("Queen orders a Huntsman to take Snow White into the forest and kill Snow White.");
+  signal(sem_h_take);
+
+  wait(sem_q_realize);
+  do_delay(MAX_DELAY);
+  print_line("Queen realizes that Huntsman tricked her, and decides to kill Snow White herself.");
+  do_delay(MAX_DELAY);
+  print_line("Queen disguises herself as an Old Peddler.");
+  signal(sem_d3_wash);
+}
+
+void huntsman() {
+  wait(sem_h_take);
+  do_delay(MAX_DELAY);
+  print_line("Huntsman takes Snow White into the forest.");
+  signal(sem_d1_go);
+
+  wait(sem_h_spare);
+  do_delay(MAX_DELAY);
+  print_line("Huntsman tells Queen's plan and lets Snow White run away.");
+  signal(sem_d3_go);
+
+  wait(sem_h_heart);
+  do_delay(MAX_DELAY);
+  print_line("Huntsman gives a stag's heart to Queen.");
+  signal(sem_d1_find);
+}
+
+void snow_white() {
+  wait(sem_sw_follow);
+  do_delay(MAX_DELAY);
+  print_line("Snow White follows Huntsman and enters the forest.");
+  signal(sem_h_spare);
+
+  wait(sem_sw_escape);
+  do_delay(MAX_DELAY);
+  print_line("Snow White escapes, finds Dwarves' house, and falls asleep.");
+  signal(sem_d2_find);
+
+  wait(sem_sw_lunch2);
+  do_delay(MAX_DELAY);
+  print_line("Snow White prepares lunch for Dwarf 2.");
+  signal(sem_d2_eat);
+
+  wait(sem_sw_lunch3);
+  do_delay(MAX_DELAY);
+  print_line("Snow White prepares lunch for Dwarf 3.");
+  signal(sem_d3_eat);
+
+  wait(sem_sw_lunch1);
+  do_delay(MAX_DELAY);
+  print_line("Snow White prepares lunch for Dwarf 1.");
+  signal(sem_d1_eat);
+
+  wait(sem_sw_open);
+  do_delay(MAX_DELAY);
+  print_line("Snow White listens to knocking sounds and opens door.");
+  signal(sem_p_offer);
+
+  wait(sem_sw_eat);
+  do_delay(MAX_DELAY);
+  print_line("Snow White eats the poisoned apple.");
+  do_delay(MAX_DELAY);
+  print_line("Snow White falls into a coma.");
+  signal(sem_d2_dead);
+}
+
+void dwarf1() {
+  wait(sem_d1_go);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 1 goes to work in the morning.");
+  signal(sem_sw_follow);
+
+  wait(sem_d1_find);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 1 comes home, finds Snow White.");
+  signal(sem_d3_find);
+
+  wait(sem_d1_stay);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 1 lets her stay as a housemaid, with other dwarves.");
+  signal(sem_d2_stay);
+
+  wait(sem_d1_eat);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 1 eats lunch and goes to work.");
+  signal(sem_p_knock);
+
+  wait(sem_d1_home);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 1 comes home.");
+  signal(sem_d2_casket);
+
+  wait(sem_d1_casket);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 1 places Snow White in a glass casket as a funeral for her, with other dwarves.");
+  signal(sem_end);
+}
+
+void dwarf2() {
+  wait(sem_d2_go);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 2 goes to work in the morning.");
+  signal(sem_q_order);
+
+  wait(sem_d2_find);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 2 comes home, finds Snow White.");
+  signal(sem_h_heart);
+
+  wait(sem_d2_stay);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 2 lets her stay as a housemaid, with other dwarves.");
+  signal(sem_d3_stay);
+
+  wait(sem_d2_eat);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 2 eats lunch and goes to work.");
+  signal(sem_sw_lunch3);
+
+  wait(sem_d2_dead);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 2 comes home, finds Snow White dead, and calls all dwarves.");
+  signal(sem_d3_home);
+
+  wait(sem_d2_casket);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 2 places Snow White in a glass casket as a funeral for her, with other dwarves.");
+  signal(sem_d3_casket);
+}
+
+void dwarf3() {
+  wait(sem_d3_go);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 goes to work in the morning.");
+  signal(sem_sw_escape);
+
+  wait(sem_d3_find);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 comes home, finds Snow White.");
+  signal(sem_d1_stay);
+
+  wait(sem_d3_stay);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 lets her stay as a housemaid, with other dwarves.");
+  signal(sem_q_realize);
+
+  wait(sem_d3_wash);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 washes for lunch. (Triggers Snow White's lunch preparation)");
+  signal(sem_sw_lunch2);
+
+  wait(sem_d3_eat);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 eats lunch and goes to work.");
+  signal(sem_sw_lunch1);
+
+  wait(sem_d3_home);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 comes home.");
+  signal(sem_d1_home);
+
+  wait(sem_d3_casket);
+  do_delay(MAX_DELAY);
+  print_line("Dwarf 3 places Snow White in a glass casket as a funeral for her, with other dwarves.");
+  signal(sem_d1_casket);
+}
+
+void old_peddler() {
+  wait(sem_p_knock);
+  do_delay(MAX_DELAY);
+  print_line("Old Peddler knocks on Dwarves' house.");
+  signal(sem_sw_open);
+  signal(sem_sw_eat);
+}
+
+// main
+
+main() {
+  print_line("Once upon a time, there lived a lovely little princess named Snow White.");
+  
+  // Start
+  signal(sem_d2_go);
+
+  cobegin {
+    queen();
+    huntsman();
+    snow_white();
+    dwarf1();
+    dwarf2();
+    dwarf3();
+    old_peddler();
+  }
+
+  // the end
+  wait(sem_end);
+  print_line("To be continued.");
+}
