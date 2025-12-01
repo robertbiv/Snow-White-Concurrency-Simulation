@@ -271,12 +271,19 @@ void dwarf1() {
   n = dwarfs_home;
   signal(cnt_mutex);
   if (n == 1) {
-    msg(25, 1);
+    msg(25, 1); // finds dead
+  } else {
+    msg(7, 1);  // just comes home
+  }
+  // only start funeral after all 3 are home
+  wait(cnt_mutex);
+  if (dwarfs_home == 3) {
+    signal(cnt_mutex);
     signal(sem_funeral);
     signal(sem_funeral);
     signal(sem_funeral);
   } else {
-    msg(7, 1);
+    signal(cnt_mutex);
   }
 
   // funeral - all dwarfs participate, last one ends program
@@ -347,11 +354,17 @@ void dwarf2() {
   signal(cnt_mutex);
   if (n == 1) {
     msg(25, 2);
+  } else {
+    msg(7, 2);
+  }
+  wait(cnt_mutex);
+  if (dwarfs_home == 3) {
+    signal(cnt_mutex);
     signal(sem_funeral);
     signal(sem_funeral);
     signal(sem_funeral);
   } else {
-    msg(7, 2);
+    signal(cnt_mutex);
   }
 
   wait(sem_funeral);
@@ -421,11 +434,17 @@ void dwarf3() {
   signal(cnt_mutex);
   if (n == 1) {
     msg(25, 3);
+  } else {
+    msg(7, 3);
+  }
+  wait(cnt_mutex);
+  if (dwarfs_home == 3) {
+    signal(cnt_mutex);
     signal(sem_funeral);
     signal(sem_funeral);
     signal(sem_funeral);
   } else {
-    msg(7, 3);
+    signal(cnt_mutex);
   }
 
   wait(sem_funeral);
