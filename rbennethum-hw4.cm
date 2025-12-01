@@ -4,11 +4,10 @@
 // Class: CMPSC 472-002, Fall 2025
 // ----------------------------------------------------------------------
 
-// mutex for printing - prevents garbled output
+// mutex for printing
 binarysem print_mutex;
 
 // counters to track how many dwarfs did each action
-// used to figure out whos last to come home, first to find dead, etc
 int dwarfs_work;
 int dwarfs_found;
 int dwarfs_stay;
@@ -18,28 +17,28 @@ int dwarfs_home;
 int dwarfs_casket;
 binarysem cnt_mutex;  // protects the counters above
 
-// semaphores for story ordering - each one gates a story event
+// semaphores for story ordering; each one gates a story event
 binarysem sem_order;
 binarysem sem_take;
-semaphore sem_work;     // counting (starts at 3)
+semaphore sem_work; // counting (starts at 3)
 binarysem sem_follow;
 binarysem sem_spare;
 binarysem sem_escape;
-semaphore sem_find;     // released 3 times
+semaphore sem_find; // released 3 times
 binarysem sem_heart;
 binarysem sem_explain;
-binarysem sem_stay1;    // dwarf 1 can say lets her stay
-binarysem sem_stay2;    // dwarf 2 can say lets her stay
-binarysem sem_stay3;    // dwarf 3 can say lets her stay
+binarysem sem_stay1; // dwarf 1 can say lets her stay
+binarysem sem_stay2; // dwarf 2 can say lets her stay
+binarysem sem_stay3; // dwarf 3 can say lets her stay
 binarysem sem_realize;
-semaphore sem_wash;     // counting (starts at 3)
+semaphore sem_wash; // counting (starts at 3)
 binarysem sem_disguise;
 binarysem sem_knock;
 binarysem sem_open;
 binarysem sem_offer;
 binarysem sem_apple;
-semaphore sem_home2;    // released 3 times
-semaphore sem_funeral;  // released 3 times
+semaphore sem_home2; // released 3 times
+semaphore sem_funeral; // released 3 times
 binarysem sem_end;
 
 // for lunch queue - dwarfs add themselves when they wash
@@ -50,6 +49,7 @@ binarysem lunch1;  // signals dwarf 1 that lunch is ready
 binarysem lunch2;  // signals dwarf 2
 binarysem lunch3;  // signals dwarf 3
 
+//random delay
 void Delay() {
   int i;
   int DelayTime;
@@ -57,7 +57,7 @@ void Delay() {
   for (i = 0; i < DelayTime; i++);
 }
 
-// print function
+// print switch
 void msg(int t, int d) {
   wait(print_mutex);
   if (t == 1)
@@ -111,7 +111,7 @@ void msg(int t, int d) {
   signal(print_mutex);
 }
 
-// Queen waits for first dwarf to go to work, then orders huntsman
+// Queen
 void queen() {
   wait(sem_order);  // triggered by first dwarf going to work
   Delay();
@@ -129,7 +129,7 @@ void queen() {
   signal(sem_knock);
 }
 
-// Huntsman takes SW to forest, spares her, gives heart to queen
+// Huntsman
 void huntsman() {
   wait(sem_take);
   Delay();
@@ -191,7 +191,7 @@ void snow_white() {
     }
   }
 
-  // poisoning sequence - cant be interrupted
+  // cant be interrupted
   wait(sem_open);
   Delay();
   msg(21, 0);
@@ -210,7 +210,7 @@ void snow_white() {
   signal(sem_home2);
 }
 
-// Dwarf 1 - races with other dwarfs for most actions
+// Dwarf races
 // uses counters to check if hes first/last for special events
 void dwarf1() {
   int n;
@@ -256,7 +256,7 @@ void dwarf1() {
   q_head = dwarfs_washed;
   signal(cnt_mutex);
 
-  // wait for SW to make my lunch
+  // wait for SW to make lunch
   wait(lunch1);
   Delay();
   msg(6, 1);
@@ -298,7 +298,7 @@ void dwarf1() {
   signal(cnt_mutex);
 }
 
-// Dwarf 2 - same logic as dwarf1, just different number
+// Dwarf 2
 void dwarf2() {
   int n;
 
@@ -378,7 +378,7 @@ void dwarf2() {
   signal(cnt_mutex);
 }
 
-// Dwarf 3 - same logic as other dwarfs
+// Dwarf 3
 void dwarf3() {
   int n;
 
@@ -458,7 +458,7 @@ void dwarf3() {
   signal(cnt_mutex);
 }
 
-// Old Peddler (queen in disguise) - knocks, offers apple
+// Old Peddler
 void old_peddler() {
   wait(sem_knock);
   Delay();
@@ -487,7 +487,6 @@ main() {
   // initialize semaphores
   // print_mutex and cnt_mutex start at 1 (available)
   // sem_work and sem_wash start at 3 so all dwarfs can race
-  // everything else starts at 0 (blocked until signaled)
   initialsem(print_mutex, 1);
   initialsem(cnt_mutex, 1);
   initialsem(sem_order, 0);
@@ -527,6 +526,6 @@ main() {
     old_peddler();
   }
 
-  wait(sem_end);  // wait for funeral to finish
+  wait(sem_end); // wait for funeral to finish
   cout << "To be continued." << endl;
 }
