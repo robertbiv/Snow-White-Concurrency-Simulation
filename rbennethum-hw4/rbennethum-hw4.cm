@@ -1,0 +1,531 @@
+// ----------------------------------------------------------------------
+// Name: Robert Bennethum IV
+// Email: rmb6287@psu.edu
+// Class: CMPSC 472-002, Fall 2025
+// ----------------------------------------------------------------------
+
+// mutex for printing
+binarysem print_mutex;
+
+// counters to track how many dwarfs did each action
+int workCnt;
+int foundCnt;
+int stay_cnt;
+int washIdx;
+int ateCt;
+int homeCnt;
+int caskCt;
+binarysem cnt_lock;  // for counters above
+
+// semaphores for story ordering; each one gates a story event
+binarysem sem_order;
+binarysem sem_take;
+semaphore sem_work; // counting (starts at 3)
+binarysem swFollow;  // SW follows HS
+binarysem sem_spare;
+binarysem swEscape;  // SW escapes
+semaphore sem_find; // released 3 times
+binarysem sem_heart;
+binarysem sem_explain;
+binarysem sem_stay1; // dwarf 1 can say lets her stay
+binarysem sem_stay2; // dwarf 2 can say lets her stay
+binarysem sem_stay3; // dwarf 3 can say lets her stay
+binarysem qRealize;  // queen realizes trick
+semaphore sem_wash; // counting (starts at 3)
+binarysem disgSem;   // disguise step
+binarysem knockSig;  // door knock
+binarysem doorOpen;  // SW opens door
+binarysem offerSig;  // peddler offers
+binarysem appleGo;   // apple action
+semaphore sem_home2; // released 3 times
+semaphore sem_funeral; // released 3 times
+binarysem sem_end;
+
+// for lunch queue - dwarfs add themselves when they wash
+// snow white serves in FIFO order
+int lunchQ[3];
+int qHead;
+binarysem lunch1;  // signals dwarf 1 that lunch is ready
+binarysem lunch2;  // signals dwarf 2
+binarysem lunch3;  // signals dwarf 3
+
+//random delay
+void Delay() {
+  int i;
+  int DelayTime;
+  DelayTime = random(100);
+  for (i = 0; i < DelayTime; i++);
+}
+
+// print switch
+void msg(int t, int d) {
+  wait(print_mutex);
+  if (t == 1)
+    cout << "        Dwarf " << d << " goes to work." << endl;
+  if (t == 2)
+    cout << "        Dwarf " << d << " comes home, finds SW." << endl;
+  if (t == 3)
+    cout << "        Dwarf " << d << " lets her stay." << endl;
+  if (t == 4)
+    cout << "        Dwarf " << d << " washes for lunch." << endl;
+  if (t == 5)
+    cout << "    SW makes lunch for Dwarf " << d << "." << endl;
+  if (t == 6)
+    cout << "        Dwarf " << d << " eats lunch and goes to work." << endl;
+  if (t == 7)
+    cout << "        Dwarf " << d << " comes home." << endl;
+  if (t == 8)
+    cout << "        Dwarf " << d << " puts SW in glass casket." << endl;
+  if (t == 10)
+    cout << "Queen orders Huntsman to kill SW in the forest." << endl;
+  if (t == 11)
+    cout << "    Huntsman takes SW to forest." << endl;
+  if (t == 12)
+    cout << "    SW follows Huntsman." << endl;
+  if (t == 13)
+    cout << "    Huntsman reveals plan; lets SW run away." << endl;
+  if (t == 14)
+    cout << "    SW escapes, finds Dwarves' house, and sleeps." << endl;
+  if (t == 15)
+    cout << "    Huntsman gives a stag's heart to Queen." << endl;
+  if (t == 16)
+    cout << "        Dwarf " << d << " comes home, finds SW, and wakes her." << endl;
+  if (t == 17)
+    cout << "    SW explains." << endl;
+  if (t == 18)
+    cout << "Queen realizes trick; decides to kill SW herself." << endl;
+  if (t == 19)
+    cout << "Queen disguises as peddler." << endl;
+  if (t == 20)
+    cout << "Old Peddler knocks." << endl;
+  if (t == 21)
+    cout << "    SW opens door." << endl;
+  if (t == 22)
+    cout << "Old Peddler offers a poisoned apple." << endl;
+  if (t == 23)
+    cout << "    SW eats apple." << endl;
+  if (t == 24)
+    cout << "    SW falls in coma." << endl;
+  if (t == 25)
+    cout << "        Dwarf " << d << " finds SW dead; calls others." << endl;
+  signal(print_mutex);
+}
+
+// Queen
+void queen() {
+  wait(sem_order);  // triggered by first dwarf going to work
+  Delay();
+  msg(10, 0);
+  signal(sem_take);
+
+  wait(qRealize);
+  Delay();
+  msg(18, 0);
+  signal(disgSem);
+
+  wait(disgSem);
+  Delay();
+  msg(19, 0);
+  signal(knockSig);
+}
+
+// Huntsman
+void huntsman() {
+  wait(sem_take);
+  Delay();
+  msg(11, 0);
+  signal(swFollow);
+
+  wait(sem_spare);
+  Delay();
+  msg(13, 0);
+  signal(swEscape);
+
+  wait(sem_heart);
+  Delay();
+  msg(15, 0);
+  // let all dwarfs come home
+  signal(sem_find);
+  signal(sem_find);
+  signal(sem_find);
+}
+
+// Snow White follows huntsman, escapes, explains to dwarfs,
+// serves lunch in FIFO order, then gets poisoned
+void snow_white() {
+  int served;
+  int who;
+
+  wait(swFollow);
+  Delay();
+  msg(12, 0);
+  signal(sem_spare);
+
+  wait(swEscape);
+  Delay();
+  msg(14, 0);
+  signal(sem_heart);
+
+  wait(sem_explain);
+  Delay();
+  msg(17, 0);
+  signal(sem_stay1);  // trigger dwarf 1 first
+
+  // serve lunch in order they washed (fifo)
+  // poll the queue until all 3 are served
+  served = 0;
+  while (served < 3) {
+    wait(cnt_lock);
+    if (qHead > served) {
+      who = lunchQ[served];  // get next dwarf in queue
+      signal(cnt_lock);
+      Delay();
+      msg(5, who);
+      // signal the specific dwarf that their lunch is ready
+      if (who == 1) signal(lunch1);
+      if (who == 2) signal(lunch2);
+      if (who == 3) signal(lunch3);
+      served = served + 1;
+    } else {
+      signal(cnt_lock);
+    }
+  }
+
+  // cant be interrupted
+  wait(doorOpen);
+  Delay();
+  msg(21, 0);
+  signal(offerSig);
+
+  wait(appleGo);
+  Delay();
+  // hold print mutex to prevent interruption between eating and coma
+  wait(print_mutex);
+  cout << "    SW eats apple." << endl;
+  Delay();
+  cout << "    SW falls in coma." << endl;
+  signal(print_mutex);
+  signal(sem_home2);
+  signal(sem_home2);
+  signal(sem_home2);
+}
+
+// Dwarf races
+// uses counters to check if hes first/last for special events
+void dwarf1() {
+  int n;
+
+  // go to work - all 3 dwarfs race, first one triggers queen
+  wait(sem_work);
+  Delay();
+  msg(1, 1);
+  wait(cnt_lock);
+  workCnt = workCnt + 1;
+  if (workCnt == 1) signal(sem_order);
+  signal(cnt_lock);
+
+  // come home and find SW - last one (n==3) wakes her up
+  wait(sem_find);
+  Delay();
+  wait(cnt_lock);
+  foundCnt = foundCnt + 1;
+  n = foundCnt;
+  signal(cnt_lock);
+  if (n == 3) {
+    msg(16, 1);
+    signal(sem_explain);
+  } else {
+    msg(2, 1);
+  }
+
+  wait(sem_stay1);
+  Delay();
+  msg(3, 1);
+  wait(cnt_lock);
+  stay_cnt = stay_cnt + 1;
+  signal(cnt_lock);
+  signal(sem_stay2);  // trigger dwarf 2 next
+
+  // wash for lunch - add self to queue, SW serves in this order
+  wait(sem_wash);
+  Delay();
+  msg(4, 1);
+  wait(cnt_lock);
+  lunchQ[washIdx] = 1;
+  washIdx = washIdx + 1;
+  qHead = washIdx;
+  signal(cnt_lock);
+
+  // wait for SW to make lunch
+  wait(lunch1);
+  Delay();
+  msg(6, 1);
+  wait(cnt_lock);
+  ateCt = ateCt + 1;
+  if (ateCt == 3) signal(knockSig);
+  signal(cnt_lock);
+
+  // come home after poisoning - first one (n==1) finds her dead
+  wait(sem_home2);
+  Delay();
+  wait(cnt_lock);
+  homeCnt = homeCnt + 1;
+  n = homeCnt;
+  signal(cnt_lock);
+  if (n == 1) {
+    msg(25, 1); // finds dead
+  } else {
+    msg(7, 1);  // just comes home
+  }
+  // only start funeral after all 3 are home
+  wait(cnt_lock);
+  if (homeCnt == 3) {
+    signal(cnt_lock);
+    signal(sem_funeral);
+    signal(sem_funeral);
+    signal(sem_funeral);
+  } else {
+    signal(cnt_lock);
+  }
+
+  // funeral - all dwarfs participate, last one ends program
+  wait(sem_funeral);
+  Delay();
+  msg(8, 1);
+  wait(cnt_lock);
+  caskCt = caskCt + 1;
+  if (caskCt == 3) signal(sem_end);
+  signal(cnt_lock);
+}
+
+// Dwarf 2
+void dwarf2() {
+  int n;
+
+  wait(sem_work);
+  Delay();
+  msg(1, 2);
+  wait(cnt_lock);
+  workCnt = workCnt + 1;
+  if (workCnt == 1) signal(sem_order);
+  signal(cnt_lock);
+
+  wait(sem_find);
+  Delay();
+  wait(cnt_lock);
+  foundCnt = foundCnt + 1;
+  n = foundCnt;
+  signal(cnt_lock);
+  if (n == 3) {
+    msg(16, 2);
+    signal(sem_explain);
+  } else {
+    msg(2, 2);
+  }
+
+  wait(sem_stay2);
+  Delay();
+  msg(3, 2);
+  wait(cnt_lock);
+  stay_cnt = stay_cnt + 1;
+  signal(cnt_lock);
+  signal(sem_stay3);  // trigger dwarf 3 last
+
+  wait(sem_wash);
+  Delay();
+  msg(4, 2);
+  wait(cnt_lock);
+  lunchQ[washIdx] = 2;
+  washIdx = washIdx + 1;
+  qHead = washIdx;
+  signal(cnt_lock);
+
+  wait(lunch2);
+  Delay();
+  msg(6, 2);
+  wait(cnt_lock);
+  ateCt = ateCt + 1;
+  if (ateCt == 3) signal(knockSig);
+  signal(cnt_lock);
+
+  wait(sem_home2);
+  Delay();
+  wait(cnt_lock);
+  homeCnt = homeCnt + 1;
+  n = homeCnt;
+  signal(cnt_lock);
+  if (n == 1) {
+    msg(25, 2);
+  } else {
+    msg(7, 2);
+  }
+  wait(cnt_lock);
+  if (homeCnt == 3) {
+    signal(cnt_lock);
+    signal(sem_funeral);
+    signal(sem_funeral);
+    signal(sem_funeral);
+  } else {
+    signal(cnt_lock);
+  }
+
+  wait(sem_funeral);
+  Delay();
+  msg(8, 2);
+  wait(cnt_lock);
+  caskCt = caskCt + 1;
+  if (caskCt == 3) signal(sem_end);
+  signal(cnt_lock);
+}
+
+// Dwarf 3
+void dwarf3() {
+  int n;
+
+  wait(sem_work);
+  Delay();
+  msg(1, 3);
+  wait(cnt_lock);
+  workCnt = workCnt + 1;
+  if (workCnt == 1) signal(sem_order);
+  signal(cnt_lock);
+
+  wait(sem_find);
+  Delay();
+  wait(cnt_lock);
+  foundCnt = foundCnt + 1;
+  n = foundCnt;
+  signal(cnt_lock);
+  if (n == 3) {
+    msg(16, 3);
+    signal(sem_explain);
+  } else {
+    msg(2, 3);
+  }
+
+  wait(sem_stay3);
+  Delay();
+  msg(3, 3);
+  wait(cnt_lock);
+  stay_cnt = stay_cnt + 1;
+  if (stay_cnt == 3) signal(qRealize);
+  signal(cnt_lock);
+
+  wait(sem_wash);
+  Delay();
+  msg(4, 3);
+  wait(cnt_lock);
+  lunchQ[washIdx] = 3;
+  washIdx = washIdx + 1;
+  qHead = washIdx;
+  signal(cnt_lock);
+
+  wait(lunch3);
+  Delay();
+  msg(6, 3);
+  wait(cnt_lock);
+  ateCt = ateCt + 1;
+  if (ateCt == 3) signal(knockSig);
+  signal(cnt_lock);
+
+  wait(sem_home2);
+  Delay();
+  wait(cnt_lock);
+  homeCnt = homeCnt + 1;
+  n = homeCnt;
+  signal(cnt_lock);
+  if (n == 1) {
+    msg(25, 3);
+  } else {
+    msg(7, 3);
+  }
+  wait(cnt_lock);
+  if (homeCnt == 3) {
+    signal(cnt_lock);
+    signal(sem_funeral);
+    signal(sem_funeral);
+    signal(sem_funeral);
+  } else {
+    signal(cnt_lock);
+  }
+
+  wait(sem_funeral);
+  Delay();
+  msg(8, 3);
+  wait(cnt_lock);
+  caskCt = caskCt + 1;
+  if (caskCt == 3) signal(sem_end);
+  signal(cnt_lock);
+}
+
+// Old Peddler
+void old_peddler() {
+  wait(knockSig);
+  Delay();
+  msg(20, 0);
+  signal(doorOpen);
+
+  wait(offerSig);
+  Delay();
+  msg(22, 0);
+  signal(appleGo);
+}
+
+main() {
+  cout << "Once upon a time, there lived a lovely princess named SW " << endl;
+
+  // initialize all counters to 0
+  workCnt = 0;
+  foundCnt = 0;
+  stay_cnt = 0;
+  washIdx = 0;
+  ateCt = 0;
+  homeCnt = 0;
+  caskCt = 0;
+  qHead = 0;
+
+  // initialize semaphores
+  // print_mutex and cnt_lock start at 1 (available)
+  // sem_work and sem_wash start at 3 so all dwarfs can race
+  initialsem(print_mutex, 1);
+  initialsem(cnt_lock, 1);
+  initialsem(sem_order, 0);
+  initialsem(sem_take, 0);
+  initialsem(sem_work, 3);  // dwarfs race
+  initialsem(swFollow, 0);
+  initialsem(sem_spare, 0); // keep name simple here
+  initialsem(swEscape, 0);
+  initialsem(sem_find, 0);
+  initialsem(sem_heart, 0);
+  initialsem(sem_explain, 0); // leave as-is
+  initialsem(sem_stay1, 0); // chain stays in order
+  initialsem(sem_stay2, 0);
+  initialsem(sem_stay3, 0);
+  initialsem(qRealize, 0);
+  initialsem(sem_wash, 3);  // dwarfs race
+  initialsem(disgSem, 0);
+  initialsem(knockSig, 0);
+  initialsem(doorOpen, 0);
+  initialsem(offerSig, 0);
+  initialsem(appleGo, 0);
+  initialsem(sem_home2, 0);
+  initialsem(sem_funeral, 0);
+  initialsem(sem_end, 0);
+  initialsem(lunch1, 0);
+  initialsem(lunch2, 0);
+  initialsem(lunch3, 0);
+
+  // run all 7 processes concurrently
+  cobegin {
+    queen();
+    huntsman();
+    snow_white();
+    dwarf1();
+    dwarf2();
+    dwarf3();
+    old_peddler();
+  }
+
+  wait(sem_end); // wait for funeral to finish
+  cout << "To be continued." << endl;
+}
